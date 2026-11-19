@@ -202,8 +202,12 @@ export default Plugin.define({
     await ctx.session.hook("context", async (event) => {
       try {
         const rootID = await rootSessionID(ctx, event.sessionID)
-        const context = activeGoalContext(await store.get(rootID))
-        if (context) event.system.push({ type: "text", text: context })
+        const tree = await store.get(rootID)
+        const policy = rootID === event.sessionID
+          ? "Starhelm policy: For a substantial multi-step request or an explicit request for a plan, create a goal tree with starhelm_goal_add before implementation or delegation. Use testable acceptance criteria, add only as much depth as useful (up to three levels), and do not create goals for one-step tasks. The primary model owns decomposition and reviews completed goals bottom-up."
+          : "Starhelm subagent policy: The primary model owns goal creation and decomposition. Do not add or restructure goals; use the shared tree to understand your assignment, report scope changes to the primary model, and update progress for work you perform."
+        const context = activeGoalContext(tree)
+        event.system.push({ type: "text", text: [policy, context].filter(Boolean).join("\n\n") })
       } catch (error) {
         console.error("[starhelm] Could not load active goals for context.", error)
       }
@@ -223,7 +227,7 @@ export default Plugin.define({
       })
       editor.add({
         name: "goal_add",
-        description: "Add a level-one goal, or a child goal under parentID. The maximum depth is three levels.",
+        description: "The primary session model adds a level-one goal, or a child goal under parentID. Include testable acceptance criteria; maximum depth is three levels.",
         options: { namespace: "starhelm", codemode: false },
         input: toolInput(
           {
@@ -235,6 +239,9 @@ export default Plugin.define({
           ["title"],
         ),
         execute: async (input, toolContext) => {
+          if (!(await isPrimarySession(ctx, toolContext.sessionID))) {
+            throw new Error("Only the primary session model can create or restructure goals")
+          }
           const data = input as { title: string; parentID?: string; description?: string; acceptanceCriteria?: string }
           const rootID = await rootSessionID(ctx, toolContext.sessionID)
           const tree = await store.apply(rootID, { type: "add", ...data })
@@ -292,7 +299,7 @@ export default Plugin.define({
       })
       editor.add({
         name: "goal",
-        description: "Manage hierarchical goals: add, child, start, complete, or reject",
+        description: "Manage hierarchical goals: add, child, start, complete, or reject. Only the primary session can create goals.",
         execute: async ({ sessionID, prompt }) => {
           const args = commandText(prompt.text, "goal")
           const [operation, ...rest] = args.split(/\s+/)
@@ -300,8 +307,16 @@ export default Plugin.define({
           let tree: GoalTree
 
           if (operation === "add" && rest.length) {
+            if (rootID !== sessionID) {
+              await ctx.session.synthetic({ sessionID, text: "Only the primary session can create or restructure goals. Ask the primary model to add this goal." })
+              return
+            }
             tree = await store.apply(rootID, { type: "add", title: rest.join(" ") })
           } else if (operation === "child" && rest.length >= 2) {
+            if (rootID !== sessionID) {
+              await ctx.session.synthetic({ sessionID, text: "Only the primary session can create or restructure goals. Ask the primary model to add this child goal." })
+              return
+            }
             tree = await store.apply(rootID, { type: "add", parentID: rest[0], title: rest.slice(1).join(" ") })
           } else if ((operation === "start" || operation === "complete") && rest[0]) {
             tree = await store.apply(rootID, {
