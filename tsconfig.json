@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "@opentui/solid",
+    "types": ["node"]
+  },
+  "include": [".opencode/plugins/**/*.ts", ".opencode/plugins/**/*.tsx", "tests/**/*.ts"]
+}
