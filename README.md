@@ -2,9 +2,13 @@
 
 A local OpenCode V2 plugin for resilient model retries, chunked context compaction, and hierarchical goals.
 
+## Current status
+
+The plugin is currently disabled. Its source is kept in `.opencode/disabled-plugins/starhelm` and is not loaded by OpenCode. To re-enable it, move the `starhelm` directory back under `.opencode/plugins/` and run `opencode reload`.
+
 ## Load
 
-The plugin is discovered automatically from `.opencode/plugins/starhelm` when OpenCode runs in this project. It targets OpenCode `2.3.2`.
+When enabled, the plugin is discovered automatically from `.opencode/plugins/starhelm`. It targets OpenCode `2.3.2`.
 
 Install the development dependencies to run checks:
 
